@@ -1,0 +1,4 @@
+C:/Users/borc8/WebstormProjects/locate918Mobile/android/app/.cxx/Debug/58j4w6uy/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/foo.dir
+C:/Users/borc8/WebstormProjects/locate918Mobile/android/app/.cxx/Debug/58j4w6uy/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/boo.dir
+C:/Users/borc8/WebstormProjects/locate918Mobile/android/app/.cxx/Debug/58j4w6uy/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/edit_cache.dir
+C:/Users/borc8/WebstormProjects/locate918Mobile/android/app/.cxx/Debug/58j4w6uy/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/rebuild_cache.dir
