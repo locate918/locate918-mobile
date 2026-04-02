@@ -195,9 +195,13 @@ export default function EventsScreen() {
       e.location?.toLowerCase().includes(q) ||
       e.description?.toLowerCase().includes(q);
 
-    if (ui.tab === 'thisWeek' && e.start_time) {
-      const d = new Date(e.start_time);
-      if (d < week.start || d > week.end) return false;
+    if (ui.tab === 'thisWeek') {
+      // Hide priority 3 events (aggregator/library) in This Week — matches web app
+      if ((e.source_priority ?? 3) >= 3) return false;
+      if (e.start_time) {
+        const d = new Date(e.start_time);
+        if (d < week.start || d > week.end) return false;
+      }
     }
     if (ui.tab === 'byVenue' && ui.venue) {
       if (e.venue !== ui.venue && e.location !== ui.venue) return false;
