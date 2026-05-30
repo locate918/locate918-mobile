@@ -6,3 +6,10 @@ build/
 .metro-health-check*
 *.hprof
 .env
+
+# Release signing — never commit upload keystores or secrets.
+# (debug.keystore is intentionally tracked and remains so.)
+*.jks
+*.keystore
+!android/app/debug.keystore
+android/keystores/

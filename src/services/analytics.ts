@@ -37,6 +37,7 @@ const AGGREGATOR_HOSTS = [
 ];
 
 /** RFC4122-ish v4 UUID. Not cryptographic — fine for analytics identifiers. */
+/* eslint-disable no-bitwise */
 function uuidv4(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = (Math.random() * 16) | 0;
@@ -44,6 +45,7 @@ function uuidv4(): string {
     return v.toString(16);
   });
 }
+/* eslint-enable no-bitwise */
 
 let cachedAnonId: string | null = null;
 
@@ -159,7 +161,7 @@ function eventProvider(event: Event, fallbackUrl?: string | null): ClickProvider
 
 /** Fired when an event detail screen opens. */
 export function trackEventDetailView(event: Event): void {
-  void trackClick({
+  trackClick({
     clickType: 'event_detail',
     provider: eventProvider(event, event.source_url ?? event.canonical_url),
     eventId: event.id,
@@ -169,7 +171,7 @@ export function trackEventDetailView(event: Event): void {
 
 /** Fired when the ticket / original-listing link is tapped. */
 export function trackOutboundTicket(event: Event, url: string): void {
-  void trackClick({
+  trackClick({
     clickType: 'outbound_ticket',
     provider: eventProvider(event, url),
     eventId: event.id,
@@ -180,7 +182,7 @@ export function trackOutboundTicket(event: Event, url: string): void {
 
 /** Fired when the venue-website link is tapped. Provider is always venue_direct. */
 export function trackOutboundVenue(event: Event, url: string): void {
-  void trackClick({
+  trackClick({
     clickType: 'outbound_venue',
     provider: 'venue_direct',
     eventId: event.id,

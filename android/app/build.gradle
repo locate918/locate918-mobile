@@ -82,8 +82,8 @@ android {
         applicationId "com.locate918mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1.0"
     }
     signingConfigs {
         debug {
@@ -92,15 +92,28 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Release/upload signing. Values come from gradle properties kept OUT of
+        // version control (e.g. ~/.gradle/gradle.properties). See
+        // android/RELEASE_SIGNING.md. The block is only configured when the
+        // upload keystore properties are present, so debug builds are unaffected.
+        release {
+            if (project.hasProperty('LOCATE918_UPLOAD_STORE_FILE')) {
+                storeFile file(LOCATE918_UPLOAD_STORE_FILE)
+                storePassword LOCATE918_UPLOAD_STORE_PASSWORD
+                keyAlias LOCATE918_UPLOAD_KEY_ALIAS
+                keyPassword LOCATE918_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Uses the real upload key when configured; otherwise falls back to
+            // debug signing so local release builds still work pre-setup.
+            // NOTE: a debug-signed AAB cannot be uploaded to Google Play.
+            signingConfig project.hasProperty('LOCATE918_UPLOAD_STORE_FILE') ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
