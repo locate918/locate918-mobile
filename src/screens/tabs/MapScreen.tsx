@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import MapView, { Marker, Callout } from 'react-native-maps';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../../services/api';
+import type { Event } from '../../types';
 
 const TULSA_REGION = {
   latitude: 36.154,
@@ -13,7 +14,7 @@ const TULSA_REGION = {
 
 export default function MapScreen() {
   const navigation = useNavigation<any>();
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export default function MapScreen() {
       try {
         const data = await api.getEvents();
         const withCoords = data.filter(
-          (e: any) => e.venue_latitude && e.venue_longitude,
+          (e: Event) => e.venue_latitude != null && e.venue_longitude != null,
         );
         setEvents(withCoords);
       } catch (e) {
@@ -58,12 +59,12 @@ export default function MapScreen() {
           initialRegion={TULSA_REGION}
           showsUserLocation={true}
           showsMyLocationButton={true}>
-          {events.map((event: any) => (
+          {events.map((event: Event) => (
             <Marker
               key={event.id}
               coordinate={{
-                latitude: event.venue_latitude,
-                longitude: event.venue_longitude,
+                latitude: event.venue_latitude!,
+                longitude: event.venue_longitude!,
               }}
               pinColor="#D4AF37">
               <Callout

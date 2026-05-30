@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,40 @@ import {
   Linking,
   Share,
 } from 'react-native';
+import type { Event } from '../types';
+import {
+  trackEventDetailView,
+  trackOutboundTicket,
+  trackOutboundVenue,
+} from '../services/analytics';
+import { useSavedEvents } from '../context/SavedEventsContext';
 
 export default function EventDetailScreen({ route, navigation }: any) {
-  const { event } = route.params;
+  const event: Event = route.params.event;
+  const { isSaved, toggleSave } = useSavedEvents();
+  const saved = isSaved(event.id);
+
+  // Fire the event_detail beacon once per screen open (fire-and-forget).
+  useEffect(() => {
+    trackEventDetailView(event);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function openVenueWebsite() {
+    if (!event.venue_website) {
+      return;
+    }
+    trackOutboundVenue(event, event.venue_website);
+    Linking.openURL(event.venue_website);
+  }
+
+  function openEventSource() {
+    if (!event.source_url) {
+      return;
+    }
+    trackOutboundTicket(event, event.source_url);
+    Linking.openURL(event.source_url);
+  }
   const startDate = event.start_time ? new Date(event.start_time) : null;
   const formattedDate = startDate
     ? startDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
@@ -109,14 +140,14 @@ export default function EventDetailScreen({ route, navigation }: any) {
           {event.venue_website && (
             <TouchableOpacity
               style={{ backgroundColor: '#D4AF37', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginBottom: 10 }}
-              onPress={() => Linking.openURL(event.venue_website)}>
+              onPress={openVenueWebsite}>
               <Text style={{ color: '#000', fontSize: 15, fontWeight: '700' }}>Visit Venue Website</Text>
             </TouchableOpacity>
           )}
           {event.source_url && (
             <TouchableOpacity
               style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
-              onPress={() => Linking.openURL(event.source_url)}>
+              onPress={openEventSource}>
               <Text style={{ color: '#94a3b8', fontSize: 15, fontWeight: '600' }}>View Event Source</Text>
             </TouchableOpacity>
           )}
@@ -127,6 +158,12 @@ export default function EventDetailScreen({ route, navigation }: any) {
         style={{ position: 'absolute', top: 44, left: 16, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}
         onPress={() => navigation.goBack()}>
         <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>←</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={{ position: 'absolute', top: 44, right: 64, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: saved ? '#D4AF37' : 'transparent' }}
+        onPress={() => toggleSave(event)}>
+        <Text style={{ color: saved ? '#D4AF37' : 'white', fontSize: 18 }}>{saved ? '★' : '☆'}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity

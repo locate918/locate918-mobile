@@ -9,23 +9,15 @@ import {
   RefreshControl,
   TextInput,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../../services/api';
+import type { Event, Venue } from '../../types';
+import EventCard from '../../components/EventCard';
+import { FILTER_CATEGORIES as CATEGORIES } from '../../constants/categories';
 
 const LOGO = require('../../assets/logo.png');
-
-const CATEGORIES = [
-  { id: 'all', label: 'All' },
-  { id: 'music', label: 'Music' },
-  { id: 'comedy', label: 'Comedy' },
-  { id: 'art', label: 'Arts' },
-  { id: 'food', label: 'Food' },
-  { id: 'sports', label: 'Sports' },
-  { id: 'family', label: 'Family' },
-  { id: 'festival', label: 'Festival' },
-  { id: 'community', label: 'Community' },
-];
 
 function getWeekRange() {
   const now = new Date();
@@ -39,117 +31,27 @@ function getWeekRange() {
   return { start, end };
 }
 
-function EventCard({ event, onPress }: { event: any; onPress: () => void }) {
-  const startDate = event.start_time ? new Date(event.start_time) : null;
-  const formattedDate = startDate
-    ? startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-    : 'Date TBA';
-  const formattedTime = startDate
-    ? startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    : '';
-  const priceText =
-    event.price_min != null || event.price_max != null
-      ? event.price_min === 0 && (!event.price_max || event.price_max === 0)
-        ? 'Free'
-        : `$${event.price_min ?? 0}${event.price_max ? '–$' + event.price_max : ''}`
-      : null;
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={onPress}
-      className="bg-[#1e293b] rounded-2xl mb-4 overflow-hidden border border-white/10">
-      {event.image_url ? (
-        <View className="h-44 relative">
-          <Image source={{ uri: event.image_url }} className="w-full h-full" resizeMode="cover" />
-          <View className="absolute inset-0 bg-black/40" />
-          {(event.venue || event.location) && (
-            <View className="absolute top-3 right-3 bg-black/60 rounded-lg px-2.5 py-1 border border-white/10">
-              <Text className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-wider">
-                {event.venue ?? event.location}
-              </Text>
-            </View>
-          )}
-          <View className="absolute bottom-3 left-3 bg-black/60 rounded-full px-3 py-1.5 border border-white/10">
-            <Text className="text-xs text-[#D4AF37] font-semibold">
-              {formattedDate} · {formattedTime}
-            </Text>
-          </View>
-        </View>
-      ) : (
-        <View className="h-24 bg-[#162b4a] justify-center items-center relative">
-          <Text className="text-[#D4AF37] text-4xl font-bold opacity-20">918</Text>
-          {(event.venue || event.location) && (
-            <View className="absolute top-3 right-3 bg-black/40 rounded-lg px-2.5 py-1">
-              <Text className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-wider">
-                {event.venue ?? event.location}
-              </Text>
-            </View>
-          )}
-          <View className="absolute bottom-3 left-3 bg-black/40 rounded-full px-3 py-1.5">
-            <Text className="text-xs text-[#D4AF37] font-semibold">
-              {formattedDate} · {formattedTime}
-            </Text>
-          </View>
-        </View>
-      )}
-      <View className="px-4 py-4">
-        <Text className="text-lg font-bold text-white mb-1" numberOfLines={2}>
-          {event.title}
-        </Text>
-        {event.description ? (
-          <Text className="text-sm text-slate-400 mb-3 leading-5" numberOfLines={2}>
-            {event.description}
-          </Text>
-        ) : null}
-        <View className="flex-row items-center justify-between">
-          {!event.image_url && (event.venue || event.location) ? (
-            <Text className="text-xs text-slate-500" numberOfLines={1}>
-              {event.venue ?? event.location}
-            </Text>
-          ) : (
-            <View />
-          )}
-          <View className="flex-row">
-            {priceText && (
-              <View className="bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full px-2.5 py-0.5 mr-2">
-                <Text className="text-[10px] font-semibold text-[#D4AF37]">{priceText}</Text>
-              </View>
-            )}
-            {event.family_friendly && (
-              <View className="bg-purple-500/10 border border-purple-500/20 rounded-full px-2.5 py-0.5">
-                <Text className="text-[10px] font-semibold text-purple-300">Family</Text>
-              </View>
-            )}
-          </View>
-        </View>
-        {event.categories?.length > 0 && (
-          <View className="flex-row flex-wrap mt-3">
-            {event.categories.slice(0, 3).map((cat: string, i: number) => (
-              <View key={i} className="bg-white/5 border border-white/10 rounded px-2 py-0.5 mr-1.5 mb-1.5">
-                <Text className="text-[10px] text-slate-300 capitalize">{cat}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 export default function EventsScreen() {
   const navigation = useNavigation<any>();
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [ui, setUi] = useState({
     search: '',
-    tab: 'thisWeek' as 'thisWeek' | 'allEvents' | 'byVenue',
+    tab: 'thisWeek' as 'thisWeek' | 'allEvents' | 'byVenue' | 'forYou',
     category: 'all',
     venue: null as string | null,
     venueSearch: '',
   });
+
+  // Recommendations ("For You") — loaded lazily on first visit to the tab.
+  const [recommendations, setRecommendations] = useState<Event[]>([]);
+  const [recsLoading, setRecsLoading] = useState(false);
+  const [recsLoaded, setRecsLoaded] = useState(false);
+
+  // Real venue metadata, keyed by lowercased venue name (from GET /api/venues).
+  const [venueMeta, setVenueMeta] = useState<Record<string, Venue>>({});
 
   async function loadEvents() {
     try {
@@ -161,19 +63,56 @@ export default function EventsScreen() {
     }
   }
 
+  async function loadRecommendations() {
+    setRecsLoading(true);
+    try {
+      const data = await api.getRecommendations();
+      setRecommendations(Array.isArray(data) ? data : []);
+    } catch {
+      // non-critical; leave recommendations empty
+    } finally {
+      setRecsLoaded(true);
+      setRecsLoading(false);
+    }
+  }
+
+  async function loadVenueMeta() {
+    try {
+      const data = await api.getVenues();
+      const map: Record<string, Venue> = {};
+      (Array.isArray(data) ? data : []).forEach(v => {
+        if (v.name) map[v.name.toLowerCase()] = v;
+      });
+      setVenueMeta(map);
+    } catch {
+      // non-critical; venue header just won't show extra metadata
+    }
+  }
+
   useEffect(() => {
     loadEvents().finally(() => setLoading(false));
   }, []);
 
+  // Lazy-load per-tab data the first time each tab is opened.
+  useEffect(() => {
+    if (ui.tab === 'forYou' && !recsLoaded) {
+      loadRecommendations();
+    }
+    if (ui.tab === 'byVenue' && Object.keys(venueMeta).length === 0) {
+      loadVenueMeta();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ui.tab]);
+
   async function onRefresh() {
     setRefreshing(true);
-    await loadEvents();
+    await (ui.tab === 'forYou' ? loadRecommendations() : loadEvents());
     setRefreshing(false);
   }
 
   // Venue list
   const venueMap: Record<string, number> = {};
-  events.forEach((e: any) => {
+  events.forEach((e: Event) => {
     const v = e.venue || e.location;
     if (v) venueMap[v] = (venueMap[v] || 0) + 1;
   });
@@ -184,9 +123,10 @@ export default function EventsScreen() {
     (v) => !ui.venueSearch || v.name.toLowerCase().includes(ui.venueSearch.toLowerCase()),
   );
 
-  // Filter events
+  // Filter events. "For You" draws from recommendations; other tabs from events.
   const week = getWeekRange();
-  const filtered = events.filter((e: any) => {
+  const baseEvents = ui.tab === 'forYou' ? recommendations : events;
+  const filtered = baseEvents.filter((e: Event) => {
     const q = ui.search.toLowerCase();
     const matchesSearch =
       !q ||
@@ -232,10 +172,13 @@ export default function EventsScreen() {
 
   const showVenuePicker = ui.tab === 'byVenue' && !ui.venue;
   const TABS = [
+    { id: 'forYou', label: 'For You' },
     { id: 'thisWeek', label: 'This Week' },
     { id: 'allEvents', label: 'All Events' },
     { id: 'byVenue', label: 'By Venue' },
   ];
+  const selectedVenueMeta =
+    ui.tab === 'byVenue' && ui.venue ? venueMeta[ui.venue.toLowerCase()] : undefined;
 
   return (
     <View className="flex-1 bg-[#0f172a]">
@@ -414,7 +357,7 @@ export default function EventsScreen() {
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(item: any) => item.id}
+          keyExtractor={(item: Event) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16 }}
           refreshControl={
@@ -426,6 +369,28 @@ export default function EventsScreen() {
               progressBackgroundColor="#1e293b"
             />
           }
+          ListHeaderComponent={
+            selectedVenueMeta ? (
+              <View style={{ backgroundColor: '#1e293b', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(212,175,55,0.2)' }}>
+                {selectedVenueMeta.address && (
+                  <Text style={{ fontSize: 13, color: '#94a3b8', marginBottom: 6 }}>{selectedVenueMeta.address}</Text>
+                )}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                  {selectedVenueMeta.venue_type && (
+                    <Text style={{ fontSize: 11, color: '#D4AF37', marginRight: 12, textTransform: 'capitalize' }}>{selectedVenueMeta.venue_type}</Text>
+                  )}
+                  {selectedVenueMeta.capacity != null && (
+                    <Text style={{ fontSize: 11, color: '#64748b', marginRight: 12 }}>Cap. {selectedVenueMeta.capacity}</Text>
+                  )}
+                </View>
+                {selectedVenueMeta.website && (
+                  <TouchableOpacity onPress={() => Linking.openURL(selectedVenueMeta.website as string)} style={{ marginTop: 8 }}>
+                    <Text style={{ fontSize: 12, color: '#D4AF37', fontWeight: '600' }}>Visit venue website →</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => (
             <EventCard
               event={item}
@@ -433,9 +398,22 @@ export default function EventsScreen() {
             />
           )}
           ListEmptyComponent={
-            <View style={{ alignItems: 'center', paddingTop: 40 }}>
-              <Text style={{ color: '#64748b', fontSize: 14 }}>No events match your search</Text>
-            </View>
+            ui.tab === 'forYou' && recsLoading ? (
+              <View style={{ alignItems: 'center', paddingTop: 40 }}>
+                <ActivityIndicator size="large" color="#D4AF37" />
+              </View>
+            ) : ui.tab === 'forYou' ? (
+              <View style={{ alignItems: 'center', paddingTop: 40, paddingHorizontal: 24 }}>
+                <Text style={{ color: '#94a3b8', fontSize: 15, fontWeight: '600', marginBottom: 4 }}>No recommendations yet</Text>
+                <Text style={{ color: '#64748b', fontSize: 13, textAlign: 'center' }}>
+                  Browse and save events so Tully can learn what you like.
+                </Text>
+              </View>
+            ) : (
+              <View style={{ alignItems: 'center', paddingTop: 40 }}>
+                <Text style={{ color: '#64748b', fontSize: 14 }}>No events match your search</Text>
+              </View>
+            )
           }
         />
       )}

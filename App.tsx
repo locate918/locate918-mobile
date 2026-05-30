@@ -4,14 +4,18 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { SavedEventsProvider } from './src/context/SavedEventsContext';
 import { ActivityIndicator, View, Text } from 'react-native';
 
 import LoginScreen from './src/screens/auth/LoginScreen';
 import EventsScreen from './src/screens/tabs/EventsScreen';
 import MapScreen from './src/screens/tabs/MapScreen';
 import ChatScreen from './src/screens/tabs/ChatScreen';
+import SavedScreen from './src/screens/tabs/SavedScreen';
 import ProfileScreen from './src/screens/tabs/ProfileScreen';
 import EventDetailScreen from './src/screens/EventDetailScreen';
+import PreferencesScreen from './src/screens/PreferencesScreen';
+import AnalyticsConsentBanner from './src/components/AnalyticsConsentBanner';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -64,6 +68,15 @@ function TabNavigator() {
         }}
       />
       <Tab.Screen
+        name="Saved"
+        component={SavedScreen}
+        options={{
+          tabBarIcon: ({ color }) => (
+            <Text style={{ color, fontSize: 18 }}>★</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Profile"
         component={ProfileScreen}
         options={{
@@ -81,6 +94,7 @@ function AppStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Main" component={TabNavigator} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+      <Stack.Screen name="Preferences" component={PreferencesScreen} />
     </Stack.Navigator>
   );
 }
@@ -110,9 +124,14 @@ function RootNavigator() {
 export default function App() {
   return (
     <AuthProvider>
-      <NavigationContainer>
-        <RootNavigator />
-      </NavigationContainer>
+      <SavedEventsProvider>
+        <View style={{ flex: 1 }}>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+          <AnalyticsConsentBanner />
+        </View>
+      </SavedEventsProvider>
     </AuthProvider>
   );
 }
