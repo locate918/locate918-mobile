@@ -24,7 +24,7 @@ export default function ProfileScreen() {
       <TouchableOpacity
         style={{ backgroundColor: '#1e293b', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', paddingVertical: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 12 }}
         onPress={() => navigation.navigate('Preferences')}>
-        <Text style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>Preferences</Text>
+        <Text style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>Your Interests</Text>
         <Text style={{ color: '#64748b', fontSize: 18 }}>›</Text>
       </TouchableOpacity>
 

@@ -151,17 +151,20 @@ Auth token attachment, Supabase JWT + auto-refresh, anonymous-safe public calls,
 - **Deviation:** venue grouping kept **name-based**, NOT id-joined — because `Event.venue_id` (int) ≠ `Venue.id` (uuid) (§6). Enriched by name match instead of replacing the picker. Revisit if backend exposes a shared key.
 - **Deferred:** venue traffic leaderboard (`/api/analytics/venues/traffic`, verified 401/exists) — optional per plan.
 
-**Phase 5 — Preferences UI ✅**
-- `src/constants/categories.ts` (shared); `src/screens/PreferencesScreen.tsx` (Skip/Like/Love weights), linked from Profile, registered in AppStack.
+**Phase 5 — Preferences → read-only "Your Interests" ✅ (redesigned after verification)**
+- `src/screens/PreferencesScreen.tsx` now **displays** category affinities (read-only); linked from Profile ("Your Interests"), registered in AppStack.
+- Reason: `preferences` are **signed ML affinity weights** seeded at onboarding and tuned by the recommender (NOT user-set levels), and the web app exposes no manual preference-editor POST. A weight editor would corrupt the model, so it was dropped in favor of a read-only view.
 
-**Deferred / out of scope:** live affiliate link rewriting (dormant per contract §5.4); venue traffic leaderboard.
+**Deferred / out of scope:** live affiliate link rewriting (dormant per contract §5.4); venue traffic leaderboard; manual preference editing.
 
-### Response shapes NOT yet verified (auth-gated — confirm against a logged-in session)
-- `GET /api/users/me/saved-events` → assumed `Event[]` (guarded with `Array.isArray` in `SavedEventsContext`).
-- `GET /api/users/me/recommendations` → assumed `Event[]` (guarded in `EventsScreen`).
-- `GET`/`POST /api/users/me/preferences` → assumed `{ categories: { <id>: <weight> } }` (isolated in `parsePreferences`/`toPreferencesPayload` in `PreferencesScreen`).
+### Response shapes — VERIFIED against a logged-in session (2026-05-30)
+Confirmed live (user `/api/users/me` + `/saved-events`):
+- **`analytics_clicks` table columns exactly match our beacon payload** (`anon_id, click_uid, click_type, provider, event_id, venue_id, destination_url, referrer` + server-set `user_id`/`user_agent`/`occurred_at`). Phase 1 payload correct. ✅
+- **`GET /api/users/me/saved-events` → bare `Event[]`.** `SavedEventsContext` adapter correct. ✅
+- **`preferences`** (embedded on `/api/users/me` as `preferences: [...]`) → array of `{ id, user_id, category, weight, created_at, updated_at }`. `weight` is a **signed float** (e.g. `-2.46`). Categories are a **Title-Case taxonomy** (`Film, Music, Nightlife, Comedy, Educational, Food & Drink, Sports & Fitness, Family, Art & Theater, Festival, Nature & Outdoors, Community`) — distinct from the app's lowercase event-filter ids. (Minor data-quality note: both `Art & Theater` and `Arts & Theater` exist.)
+- `GET /api/users/me/recommendations` → not exercised by the web app in captured traffic; "For You" tab kept with tolerant array parsing (bare `Event[]` or `{events|recommendations|data: [...]}`).
 
-Each mismatch is a small, localized fix in the noted adapter.
+The Supabase `user_preferences` table is normalized (one row per category/weight); the secret key used to inspect schema should be rotated.
 
 ---
 

@@ -7,63 +7,63 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { api } from '../services/api';
-import { EVENT_CATEGORIES } from '../constants/categories';
 
 /**
- * Category preference weights, keyed by category id (0 = not set, up to 1.0).
+ * Read-only "Your interests" view.
  *
- * NOTE: the exact preferences request/response shape could NOT be verified — the
- * endpoint is auth-gated, so it can't be introspected anonymously. We assume
- * `{ categories: { <id>: <weight> } }` and parse defensively. Confirm against a
- * logged-in session; if the backend differs, only the two adapters below change.
+ * Category preferences are stored as one row per (category, weight). The
+ * `weight` is a SIGNED ML affinity score (e.g. -2.46), seeded at onboarding and
+ * tuned by the recommender from user activity — NOT a user-set level. So this
+ * screen DISPLAYS affinities (it does not let the user write weights, which
+ * would corrupt the model). Shape verified against /api/users/me on 2026-05-30:
+ * `preferences: [{ category, weight, id, user_id, created_at, updated_at }]`.
  */
-type CategoryWeights = Record<string, number>;
-
-const LEVELS: { label: string; weight: number }[] = [
-  { label: 'Skip', weight: 0 },
-  { label: 'Like', weight: 0.5 },
-  { label: 'Love', weight: 1 },
-];
-
-function parsePreferences(data: any): CategoryWeights {
-  if (!data || typeof data !== 'object') {
-    return {};
-  }
-  const src =
-    data.categories && typeof data.categories === 'object'
-      ? data.categories
-      : data;
-  const out: CategoryWeights = {};
-  for (const [k, v] of Object.entries(src)) {
-    if (typeof v === 'number') {
-      out[k] = v;
-    }
-  }
-  return out;
+interface CategoryPreference {
+  category: string;
+  weight: number;
 }
 
-function toPreferencesPayload(weights: CategoryWeights) {
-  return { categories: weights };
+function parsePreferences(data: any): CategoryPreference[] {
+  const arr = Array.isArray(data?.preferences)
+    ? data.preferences
+    : Array.isArray(data)
+    ? data
+    : [];
+  return arr
+    .filter((p: any) => p && typeof p.category === 'string')
+    .map((p: any) => ({
+      category: p.category,
+      weight: typeof p.weight === 'number' ? p.weight : 0,
+    }));
 }
 
-type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+function affinity(weight: number): { label: string; color: string } {
+  if (weight >= 1) return { label: 'Loved', color: '#D4AF37' };
+  if (weight > 0) return { label: 'Liked', color: '#22c55e' };
+  if (weight === 0) return { label: 'Neutral', color: '#64748b' };
+  if (weight > -1) return { label: 'Cooler', color: '#94a3b8' };
+  return { label: 'Muted', color: '#ef4444' };
+}
 
 export default function PreferencesScreen({ navigation }: any) {
-  const [weights, setWeights] = useState<CategoryWeights>({});
+  const [prefs, setPrefs] = useState<CategoryPreference[]>([]);
   const [loading, setLoading] = useState(true);
-  const [save, setSave] = useState<SaveState>('idle');
 
   useEffect(() => {
     let mounted = true;
+    // `preferences` is embedded on the user object; read it from there.
     api
-      .getMyPreferences()
-      .then(data => {
+      .getMe()
+      .then(user => {
         if (mounted) {
-          setWeights(parsePreferences(data));
+          const parsed = parsePreferences(user).sort(
+            (a, b) => b.weight - a.weight,
+          );
+          setPrefs(parsed);
         }
       })
       .catch(() => {
-        // start from empty if none set / load fails
+        // leave empty on failure
       })
       .finally(() => {
         if (mounted) {
@@ -75,26 +75,6 @@ export default function PreferencesScreen({ navigation }: any) {
     };
   }, []);
 
-  async function setWeight(categoryId: string, weight: number) {
-    const next = { ...weights, [categoryId]: weight };
-    setWeights(next);
-    setSave('saving');
-    try {
-      await api.updatePreferences(toPreferencesPayload(next));
-      setSave('saved');
-    } catch {
-      setSave('error');
-    }
-  }
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#D4AF37" />
-      </View>
-    );
-  }
-
   return (
     <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
       {/* Header */}
@@ -104,55 +84,52 @@ export default function PreferencesScreen({ navigation }: any) {
           style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 18, width: 36, height: 36, justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
           <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>←</Text>
         </TouchableOpacity>
-        <Text style={{ fontSize: 22, fontWeight: 'bold', color: 'white', flex: 1 }}>
-          Preferences
+        <Text style={{ fontSize: 22, fontWeight: 'bold', color: 'white' }}>
+          Your Interests
         </Text>
-        {save === 'saving' && <ActivityIndicator size="small" color="#D4AF37" />}
-        {save === 'saved' && <Text style={{ color: '#22c55e', fontSize: 12 }}>Saved</Text>}
-        {save === 'error' && <Text style={{ color: '#ef4444', fontSize: 12 }}>Failed</Text>}
       </View>
 
       <Text style={{ color: '#94a3b8', fontSize: 13, paddingHorizontal: 16, marginBottom: 12 }}>
-        Tell Tully what you're into. This tunes your "For You" recommendations.
+        Tully learns these from your activity — browse and save events to refine
+        your "For You" recommendations.
       </Text>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}>
-        {EVENT_CATEGORIES.map(cat => {
-          const current = weights[cat.id] ?? 0;
-          return (
-            <View
-              key={cat.id}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1e293b', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
-              <Text style={{ color: 'white', fontSize: 15, fontWeight: '600', flex: 1 }}>
-                {cat.label}
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#D4AF37" />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}>
+          {prefs.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingTop: 40, paddingHorizontal: 24 }}>
+              <Text style={{ color: '#94a3b8', fontSize: 15, fontWeight: '600', marginBottom: 4 }}>
+                No interests yet
               </Text>
-              <View style={{ flexDirection: 'row' }}>
-                {LEVELS.map(level => {
-                  const active = current === level.weight;
-                  return (
-                    <TouchableOpacity
-                      key={level.label}
-                      onPress={() => setWeight(cat.id, level.weight)}
-                      style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        borderRadius: 16,
-                        marginLeft: 6,
-                        backgroundColor: active ? 'rgba(212,175,55,0.2)' : 'transparent',
-                        borderWidth: 1,
-                        borderColor: active ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.1)',
-                      }}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: active ? '#D4AF37' : '#64748b' }}>
-                        {level.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              <Text style={{ color: '#64748b', fontSize: 13, textAlign: 'center' }}>
+                Your category affinities will appear here as you use the app.
+              </Text>
             </View>
-          );
-        })}
-      </ScrollView>
+          ) : (
+            prefs.map(p => {
+              const a = affinity(p.weight);
+              return (
+                <View
+                  key={p.category}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1e293b', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <Text style={{ color: 'white', fontSize: 15, fontWeight: '600', flex: 1 }}>
+                    {p.category}
+                  </Text>
+                  <View style={{ backgroundColor: a.color + '22', borderColor: a.color + '55', borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 4 }}>
+                    <Text style={{ color: a.color, fontSize: 12, fontWeight: '700' }}>
+                      {a.label}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }

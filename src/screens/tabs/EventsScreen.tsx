@@ -66,8 +66,12 @@ export default function EventsScreen() {
   async function loadRecommendations() {
     setRecsLoading(true);
     try {
-      const data = await api.getRecommendations();
-      setRecommendations(Array.isArray(data) ? data : []);
+      const data: any = await api.getRecommendations();
+      // Confirmed bare Event[] for saved-events; tolerate a wrapped shape too.
+      const list = Array.isArray(data)
+        ? data
+        : data?.events ?? data?.recommendations ?? data?.data ?? [];
+      setRecommendations(Array.isArray(list) ? list : []);
     } catch {
       // non-critical; leave recommendations empty
     } finally {

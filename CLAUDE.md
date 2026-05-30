@@ -38,7 +38,8 @@ Chat: `POST /api/chat` on the **LLM** host.
 - `ticket_provider` is **not served yet** — classify analytics `provider` from the destination URL (`src/services/analytics.ts`).
 - `Event.venue_id` is an **int**, but `Venue.id` is a **uuid** — different identifiers, do not join on them. "By Venue" grouping is name-based.
 - Both `source_priority` and `venue_priority` exist. "This Week" filter uses `source_priority` (correct).
-- Response shapes for `saved-events`, `recommendations`, `preferences` are **assumed** (auth-gated, unverified) — isolated in adapters; confirm against a logged-in session.
+- `GET /api/users/me/saved-events` → bare `Event[]` (verified). `recommendations` kept with tolerant array parsing.
+- **Preferences are read-only in the app.** `/api/users/me` embeds `preferences: [{ category, weight, ... }]` where `weight` is a **signed ML affinity score** (e.g. -2.46), seeded at onboarding + tuned by the recommender — do NOT write them from the client. Category names are a Title-Case taxonomy distinct from the lowercase event-filter ids.
 
 ## Analytics beacon (`src/services/analytics.ts`)
 Fire-and-forget `POST /api/analytics/click` for ALL users; never blocks navigation. `anon_id` persisted once in AsyncStorage; `click_uid` per click. Fires `event_detail` (on EventDetail open), `outbound_ticket` (source link), `outbound_venue` (venue website). See brief §4 for the payload.
